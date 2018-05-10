@@ -8,7 +8,11 @@ import frappe
 import requests
 from frappe.model.document import Document
 
-BASE_URL, AUTH, PARAMS = get_metrc_config()
+metrc_settings = frappe.get_single("Metrc API Settings")
+
+BASE_URL = metrc_settings.url
+AUTH = (metrc_settings.api_key, metrc_settings.user_key)
+PARAMS = {"licenseNumber": metrc_settings.room}
 
 
 class Room(Document):
@@ -49,12 +53,3 @@ class Room(Document):
 		delete_room_url = BASE_URL + "/rooms/v1/" + self.room_id
 		requests.delete(url=delete_room_url, auth=AUTH, params=PARAMS)
 
-
-def get_metrc_config():
-	metrc_settings = frappe.get_single("Metrc API Settings")
-
-	base_url = metrc_settings.url
-	auth = (metrc_settings.api_key, metrc_settings.user_key)
-	params = {"licenseNumber": metrc_settings.room}
-
-	return base_url, auth, params

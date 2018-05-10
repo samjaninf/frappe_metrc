@@ -9,7 +9,12 @@ import requests
 from frappe import _
 from frappe.model.document import Document
 
-BASE_URL, AUTH, PARAMS = get_config()
+
+metrc_settings = frappe.get_single("Metrc API Settings")
+
+BASE_URL = metrc_settings.url
+AUTH = (metrc_settings.api_key, metrc_settings.user_key)
+PARAMS = {"licenseNumber": metrc_settings.strain}
 
 
 class Strain(Document):
@@ -57,13 +62,3 @@ class Strain(Document):
 	def on_trash(self):
 		url = BASE_URL + "/strains/v1/" + self.strain_id
 		requests.delete(url=url, auth=AUTH, params=PARAMS)
-
-
-def get_config():
-	metrc_settings = frappe.get_single("Metrc API Settings")
-
-	base_url = metrc_settings.url
-	auth = (metrc_settings.api_key, metrc_settings.user_key)
-	params = {"licenseNumber": metrc_settings.strain}
-
-	return base_url, auth, params
