@@ -8,48 +8,49 @@ import frappe
 import requests
 from frappe.model.document import Document
 
+BASE_URL, AUTH, PARAMS = get_metrc_config()
+
 
 class Room(Document):
 	def validate(self):
-		base_url, auth, params = get_config()
+		self.create_or_update_room()
+		self.check_room()
+
+	def create_or_update_room(self):
+		data = [
+			{
+				"Name": self.room_name
+			}
+		]
 
 		if not self.room_id:
 			# Create Room in Metrc and assign ID
-			data = [{
-				"Name": self.room_name
-			}]
-
-			create_room_url = base_url + "/rooms/v1/create"
-
-			# metrc will return a 200 if all is good
-			# it won't send the id of the room; you need to guess that out
-			requests.post(url=create_room_url, auth=auth, params=params, json=data)
-
-			# Try to find if the room id was assigned
-			check_room_url = base_url + "/rooms/v1/active"
-			response = requests.get(url=check_room_url, auth=auth, params=params)
-
-			for room in response.json():
-				if room.get("Name") == self.room_name:
-					self.room_id = room.get("Id")
+			url = BASE_URL + "/rooms/v1/create"
 		else:
 			# use the update API to update the object if room id exists
-			data = [{
-				"Id": self.room_id,
-				"Name": self.room_name
-			}]
+			data[0].update({"Id": self.room_id})
 
-			update_room_url = base_url + "/rooms/v1/update"
-			requests.post(url=update_room_url, auth=auth, params=params, json=data)
+			url = BASE_URL + "/rooms/v1/update"
+
+		# metrc will return a 200 if all is good
+		# it won't send the id of the room; you need to guess that out
+		requests.post(url=url, auth=AUTH, params=PARAMS, json=data)
+
+	def check_room(self):
+		# Try to find if the room id was assigned
+		url = BASE_URL + "/rooms/v1/active"
+		response = requests.get(url=url, auth=AUTH, params=PARAMS)
+
+		for room in response.json():
+			if room.get("Name") == self.room_name:
+				self.room_id = room.get("Id")
 
 	def on_trash(self):
-		base_url, auth, params = get_config()
-
-		delete_room_url = base_url + "/rooms/v1/" + self.room_id
-		requests.delete(url=delete_room_url, auth=auth, params=params)
+		delete_room_url = BASE_URL + "/rooms/v1/" + self.room_id
+		requests.delete(url=delete_room_url, auth=AUTH, params=PARAMS)
 
 
-def get_config():
+def get_metrc_config():
 	metrc_settings = frappe.get_single("Metrc API Settings")
 
 	base_url = metrc_settings.url
