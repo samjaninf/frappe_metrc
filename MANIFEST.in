@@ -1,0 +1,18 @@
+include MANIFEST.in
+include requirements.txt
+include *.json
+include *.md
+include *.py
+include *.txt
+recursive-include frappe_metrc *.css
+recursive-include frappe_metrc *.csv
+recursive-include frappe_metrc *.html
+recursive-include frappe_metrc *.ico
+recursive-include frappe_metrc *.js
+recursive-include frappe_metrc *.json
+recursive-include frappe_metrc *.md
+recursive-include frappe_metrc *.png
+recursive-include frappe_metrc *.py
+recursive-include frappe_metrc *.svg
+recursive-include frappe_metrc *.txt
+recursive-exclude frappe_metrc *.pyc
