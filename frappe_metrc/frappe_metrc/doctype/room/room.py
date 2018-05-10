@@ -38,3 +38,9 @@ class Room(Document):
 			post_url = metrc_settings.url + "/rooms/v1/update"
 			requests.post(url=post_url, auth=auth, params=params, json=data)
 
+	def on_trash(self):
+		metrc_settings = frappe.get_single("Metrc API Settings")
+		auth=(metrc_settings.api_key, metrc_settings.user_key)
+		params={"licenseNumber": metrc_settings.room}
+		del_url = metrc_settings.url + "/rooms/v1/" + self.room_id
+		requests.delete(url=del_url, auth=auth, params=params)
