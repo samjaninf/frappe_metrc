@@ -7,8 +7,8 @@ from __future__ import unicode_literals
 import frappe
 import requests
 from frappe.model.document import Document
+from frappe_metrc.frappe_metrc.utils import get_metrc_config
 
-#BASE_URL, AUTH, PARAMS = get_metrc_config()
 
 class LabTest(Document):
 	def on_submit(self):
@@ -31,11 +31,4 @@ class LabTest(Document):
 		
 		
 
-def get_metrc_config():
-	metrc_settings = frappe.get_single("Metrc API Settings")
 
-	base_url = metrc_settings.url
-	auth = (metrc_settings.api_key, metrc_settings.user_key)
-	params = {"licenseNumber": metrc_settings.lab_test}
-
-	return base_url, auth, params

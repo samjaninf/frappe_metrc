@@ -7,15 +7,11 @@ from __future__ import unicode_literals
 import frappe
 import requests
 from frappe.model.document import Document
-
-metrc_settings = frappe.get_single("Metrc API Settings")
-
-BASE_URL = metrc_settings.url
-AUTH = (metrc_settings.api_key, metrc_settings.user_key)
-PARAMS = {"licenseNumber": metrc_settings.room}
-
+from frappe_metrc.frappe_metrc.utils import get_metrc_config
 
 class Room(Document):
+	BASE_URL, AUTH, PARAMS = get_metrc_config()
+
 	def validate(self):
 		self.create_or_update_room()
 		self.check_room()
