@@ -7,18 +7,19 @@ from __future__ import unicode_literals
 import frappe
 import requests
 from frappe.model.document import Document
-from frappe_metrc.frappe_metrc.utils import get_metrc_config
+from frappe_metrc.frappe_metrc.utils import get_metrc
 
+metrc = get_metrc("lab_test")
 
 class LabTest(Document):
 	def on_submit(self):
 		results = []
-		for res in self.results:
+		for result in self.results:
 			results.append({
-				"LabTestTypeName": res.lab_test_type_name,
-				"Quantity": res.quantity,
-				"Passed": res.passed,
-				"Notes": res.notes
+				"LabTestTypeName": result.lab_test_type,
+				"Quantity": result.quantity,
+				"Passed": result.passed,
+				"Notes": result.notes
 			})
 		
 		data = [
@@ -28,6 +29,12 @@ class LabTest(Document):
 				"Results": results
 			}
 		]
+
+		response = metrc.post("/labtests/v1/record", data)
+		if response != "Success":
+			frappe.throw(response)
+
+
 		
 		
 
