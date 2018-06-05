@@ -14,15 +14,17 @@ metrc = get_metrc("strain")
 
 class Strain(Document):
 	def validate(self):
-		self.create_or_update_strain()
-		self.check_strain()
+		pass
+		# self.create_or_update_strain()
+		# self.check_strain()
 
 	def after_rename(self, old, new, merge=False):
 		self.create_or_update_strain()
 
 	def create_or_update_strain(self):
-		if not self.indica_percentage + self.sativa_percentage == 100:
-			frappe.throw(_("Indica Percentage and Sativa Percentage combined must be 100%."))
+		if self.indica_percentage and self.sativa_percentage:
+			if not self.indica_percentage + self.sativa_percentage == 100:
+				frappe.throw(_("Indica Percentage and Sativa Percentage combined must be 100%."))
 
 		data = [
 			{
