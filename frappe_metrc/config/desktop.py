@@ -7,8 +7,8 @@ def get_data():
 		{
 			"module_name": "Frappe Metrc",
 			"color": "green",
-			"icon": "octicon octicon-tools",
+			"icon": "fa fa-check",
 			"type": "module",
-			"label": _("Frappe Metrc")
+			"label": _("Compliance")
 		}
 	]

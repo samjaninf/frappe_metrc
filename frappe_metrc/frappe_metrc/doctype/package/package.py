@@ -7,14 +7,19 @@ import frappe
 from frappe.model.document import Document
 from frappe_metrc.frappe_metrc.utils import get_metrc
 
-metrc = get_metrc("plant_batch")
+metrc = get_metrc("package")
 
 class Package(Document):
 	def validate(self):
-		self.get_data()
+		self.update_package()
 
-	def get_data(self):
-		if not self.id:
-			package = metrc.get("/packages/v1/{}".format(self.label))
-			if package:
-				self.id = package.get("Id")
+	def update_package(self):
+		package = metrc.get("/packages/v1/{}".format(self.label))
+		if not package:
+			return
+
+		self.id = package.get("Id")
+		self.package_type = package.get("PackageType")
+		self.source_harvest = package.get("SourceHarvestNames")
+		self.quantity = package.get("Quantity")
+		self.uom = package.get("UnitOfMeasureName")

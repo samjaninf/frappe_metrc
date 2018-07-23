@@ -12,4 +12,4 @@ from frappe_metrc.frappe_metrc.metrc.request import METRC
 def get_metrc(license_type):
 	metrc_settings = frappe.db.get_singles_dict("Metrc API Settings")
 	license = metrc_settings.get(license_type)
-	return METRC(metrc_settings.api_key,  metrc_settings.user_key, license, url="https://sandbox-api-ca.metrc.com/")
+	return METRC(metrc_settings.api_key,  metrc_settings.user_key, license, url=metrc_settings.url)

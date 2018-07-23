@@ -1,5 +1,4 @@
 import requests
-import pprint
 
 
 DEFAULT_API_URL = "https://api-ca.metrc.com/"
@@ -7,8 +6,8 @@ SANDBOX_API_URL = "https://sandbox-api-ca.metrc.com/"
 API_VERSION = "v1"
 
 class METRC():
-    def __init__(self, vendor_key, user_key, license, url=""):
-        self.BASE_URL = url or DEFAULT_API_URL
+    def __init__(self, vendor_key, user_key, license, url):
+        self.BASE_URL = url
         self.AUTH = (vendor_key, user_key)
         self.PARAMS = {"licenseNumber" : license}
 
@@ -16,14 +15,18 @@ class METRC():
         response = self._request(requests.post, endpoint, {"json": data})
         print("TEXT", response.text)
         print("STATUS CODE", response.status_code)
-        if response.status_code == 200:
-            return "Success"
+        if not response.status_code == 200:
+            response.raise_for_status()
         else:
             return response.json()
 
     def get(self, endpoint, params=None):
         response = self._request(requests.get, endpoint, {"params" : params})
-        if response.status_code == 200:
+        print("TEXT", response.text)
+        print("STATUS CODE", response.status_code)
+        if not response.status_code == 200:
+            response.raise_for_status()
+        else:
             return response.json()
 
     def delete(self, endpoint):
@@ -39,8 +42,6 @@ class METRC():
 
         return method(self._uri(endpoint), auth=self.AUTH, **args)
 
-
     def _uri(self, endpoint):
         return self.BASE_URL + endpoint
-
     

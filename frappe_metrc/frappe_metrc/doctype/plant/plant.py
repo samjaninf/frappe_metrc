@@ -10,21 +10,18 @@ metrc = get_metrc("plant")
 
 class Plant(Document):
 	def validate(self):
-		# self.create_or_update_plant()
-		# self.check_plant()
+		self.update_plant()
+		self.check_plant()
 		self.move_plant()
 
 	def move_plant(self):
-		# if self.room != frappe.db.get_value("Plant", self.name, "room"):
-		data = [{
-			"Label" : self.label,
-			"Room" : self.room,
-			"ActualDate" : frappe.utils.today()
-		}]
-		metrc.post("/plants/v1/moveplants", data)
-
-	def after_rename(self, old, new, merge=False):
-		self.create_or_update_plant()
+		if self.room != frappe.db.get_value("Plant", self.name, "room"):
+			data = [{
+				"Label" : self.label,
+				"Room" : self.room,
+				"ActualDate" : frappe.utils.today()
+			}]
+			metrc.post("/plants/v1/moveplants", data)
 
 	def manicure(self):
 		data = [
@@ -57,47 +54,24 @@ class Plant(Document):
 			harvest.save()
 			frappe.db.commit()
 
-	def create_or_update_plant(self):
-		data = [
-					{
-						"PlantLabel": self.label,
-						"PlantBatchName": self.batch,
-						"PlantBatchType": self.type,
-						"PlantCount": self.count,
-						"StrainName": self.strain,
-						"ActualDate": self.actual_date
-					}
-		]
-
-		if not self.id:
-			# Create Room in Metrc and assign ID
-			response = metrc.post("/plants/v1/create/plantings", data)
-			if response != "Success":
-				frappe.throw(response)
-		else:
-			data[0].update({"Id": self.id})
-			# use the update API to update the object if room id exists
-			response = metrc.post("/plants/v1/update", data)
-			if response != "Success":
-				frappe.throw(response)
+	def update_plant(self):
+		if self.is_new() and not self.id:
+			self.check_plant()
 
 	def check_plant(self):
-		# Try to find if the room id was assigned
 		plant = metrc.get("/plants/v1/{}".format(self.label))
 		if not plant:
 			return
 
 		self.id = plant.get("Id")
-		self.type = plant.get("PlantBatchType")
 		self.count = plant.get("PlantCount")
-		self.actual_date = plant.get("ActualDate")
+		self.planted_date = plant.get("PlantedDate")
 		self.state = plant.get("State")
 		self.growth_phase = plant.get("GrowthPhase")
 
 		if not frappe.db.exists("Plant Batch", plant.get("PlantBatchName")):
 			plant_batch_doc = frappe.new_doc("Plant Batch")
 			plant_batch_doc.batch_id = plant.get("PlantBatchId")
-			plant_batch_doc.type = plant.get("PlantBatchType")
 			plant_batch_doc.batch_name = plant.get("PlantBatchName")
 			plant_batch_doc.save()
 			frappe.db.commit()
