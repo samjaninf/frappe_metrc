@@ -13,17 +13,10 @@ class METRC():
 
     def post(self, endpoint, data=None):
         response = self._request(requests.post, endpoint, {"json": data})
-        print("TEXT", response.text)
-        print("STATUS CODE", response.status_code)
-        if not response.status_code == 200:
-            response.raise_for_status()
-        else:
-            return response.json()
+        return response
 
     def get(self, endpoint, params=None):
         response = self._request(requests.get, endpoint, {"params" : params})
-        print("TEXT", response.text)
-        print("STATUS CODE", response.status_code)
         if not response.status_code == 200:
             response.raise_for_status()
         else:

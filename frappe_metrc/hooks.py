@@ -80,8 +80,8 @@ app_license = "MIT"
 # Hook on document methods and events
 
 doc_events = {
-	"Batch": {
-		"on_insert": ""
+	"Stock Entry": {
+		"on_submit": "frappe_metrc.utils.create_package"
 	}
 }
 

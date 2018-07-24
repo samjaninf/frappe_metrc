@@ -8,7 +8,7 @@ import frappe
 import requests
 from frappe import _
 from frappe.model.document import Document
-from frappe_metrc.frappe_metrc.utils import get_metrc
+from frappe_metrc.utils import get_metrc
 
 metrc = get_metrc("strain")
 
