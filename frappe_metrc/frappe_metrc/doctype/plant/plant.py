@@ -6,13 +6,16 @@ from __future__ import unicode_literals
 import frappe
 from frappe.model.document import Document
 from frappe_metrc.utils import get_metrc
+import random
+
+
 metrc = get_metrc("plant")
 
 class Plant(Document):
 	def validate(self):
-		self.update_plant()
+		# self.update_plant()
 		self.check_plant()
-		self.move_plant()
+		# self.move_plant()
 
 	def move_plant(self):
 		if self.room != frappe.db.get_value("Plant", self.name, "room"):
@@ -89,6 +92,11 @@ class Plant(Document):
 			room_doc = frappe.new_doc("Strain")
 			room_doc.strain_id = plant.get("StrainId")
 			room_doc.strain_name = plant.get("StrainName")
+			rint = random.randint(0,100)
+			room_doc.indica_percentage = rint
+			room_doc.sativa_percentage = 100 - rint
+			room_doc.thc_level = random.random()
+			room_doc.cbd_level = random.random()
 			room_doc.save()
 			frappe.db.commit()
 
