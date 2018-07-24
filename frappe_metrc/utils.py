@@ -134,7 +134,7 @@ def create_transfers():
 
 
 
-	for x in range(1):
+	for x in range(100):
 		td = frappe.new_doc("Transfer")
 		td.manifest_no = random.randint(1000000001, 10000000000)
 		td.recieved_on = faker.past_datetime(start_date="-30d", tzinfo=None)
