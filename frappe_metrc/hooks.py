@@ -81,7 +81,8 @@ app_license = "MIT"
 
 doc_events = {
 	"Stock Entry": {
-		"on_submit": "frappe_metrc.utils.create_package"
+		"on_submit": ["frappe_metrc.utils.create_package",
+                    "frappe_metrc.utils.add_comment_to_batch"],
 	}
 }
 
