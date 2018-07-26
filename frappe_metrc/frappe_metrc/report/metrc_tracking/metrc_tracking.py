@@ -4,10 +4,10 @@
 from __future__ import unicode_literals
 
 import frappe
+from frappe import _
 from erpnext.stock.doctype.batch.batch import get_batch_qty
-from frappe.desk.query_report import get_linked_doctypes
+from frappe.desk.form.linked_with import get_linked_docs, get_linked_doctypes
 from frappe.utils.background_jobs import enqueue
-
 
 def execute(filters=None):
 	columns, data = [], []
@@ -18,45 +18,39 @@ def execute(filters=None):
 	if not filters.get("package_id"):
 		return columns, data
 
-	if filters.get("link_doctype") == "Serial No":
-		columns = ["Serial No:Link/Serial No:120", "Item:Link/Item:240",
-					"Warehouse:Link/Warehouse:120", "Activity Document:Link/Stock Entry:120", "Creation Date"]
+	selected_doctype = filters.get("link_doctype")
+	columns = get_columns(selected_doctype)
 
+	if selected_doctype == "Serial No":
 		# What the fuck
-		serial_nos = get_serial_nos(filters.get("package_id"), [])
-		serial_nos = filter(bool, serial_nos)
-		serial_nos = list(set(serial_nos))
-		serial_nos = reversed(sorted(serial_nos, key=lambda x: frappe.db.get_value("Serial No", x, "creation")))
-
-		for serial_no in serial_nos:
-			serial_no = frappe.get_doc("Serial No", serial_no)
-
-			if not serial_no.warehouse or not data:
-				data.append([serial_no.name, serial_no.item_name, serial_no.warehouse,
-							serial_no.purchase_document_no, frappe.utils.format_datetime(serial_no.creation)])
+		results = get_serial_nos(filters.get("package_id"), [])
+		if results:
+			for result in results[:-1]:
+				sle_list = frappe.get_all("Stock Ledger Entry", filters={"serial_no": [
+					"like", "%{}%".format(result)]}, fields=["item_code", "batch_no", "serial_no", "warehouse", "posting_date", "voucher_type", "voucher_no"])
+				for sle in sle_list:
+					data.append([sle.item_code, sle.batch_no, sle.serial_no, sle.warehouse,
+										sle.voucher_type, sle.voucher_no, sle.posting_date])
 
 	# Much less fucky
-	if filters.get("link_doctype") == "Batch":
-		columns = ["Batch:Link/Batch:120", "Quantity::100", "Item:Link/Item:240",
-					"Warehouse:Link/Warehouse:120", "Activity Document:Link/Stock Entry:120", "Creation Date"]
-
-		batch = frappe.get_doc("Batch", filters.get("package_id"))
-		batch_details = get_batch_qty(batch.name, item_code=batch.item)
-
-		for batch_detail in batch_details:
-			data.append([batch.name, batch_detail["qty"], batch.item, batch_detail["warehouse"],
-						"", frappe.utils.format_datetime(batch.creation)])
+	elif selected_doctype == "Batch":
+		results = recursively_get_links(filters.get("package_id"), [])
+		if results:
+			sle_list = frappe.get_all("Stock Ledger Entry", filters={"batch_no": [
+				"in", results]}, fields=["item_code", "batch_no", "serial_no", "warehouse", "posting_date", "voucher_type", "voucher_no"])
+			for sle in sle_list:
+				data.append([sle.item_code, sle.batch_no, sle.serial_no, sle.warehouse,
+							 sle.voucher_type, sle.voucher_no, sle.posting_date])
 
 	return columns, data
 
 
 def get_serial_nos(source_serial_no, serial_nos):
 	stock_entries = frappe.get_all("Stock Entry Detail", filters={"serial_no": [
-									"like", "%{}%".format(source_serial_no)]}, fields=["parent"])
+		"like", "%{}%".format(source_serial_no)]}, fields=["parent"])
 
 	for se in stock_entries:
 		se_doc = frappe.get_doc("Stock Entry", se.parent)
-
 		for item in se_doc.items:
 			if item.serial_no:
 				serials = item.serial_no.split("\n")
@@ -67,3 +61,79 @@ def get_serial_nos(source_serial_no, serial_nos):
 						get_serial_nos(serial_no, serial_nos)
 
 	return serial_nos
+
+
+def recursively_get_links(batch_no, batch_list):
+	link_info = {
+		'Stock Entry': {
+			'child_doctype': 'Stock Entry Detail',
+			'fieldname': ['batch_no']
+		}
+	}
+
+	results = get_linked_docs("Batch", batch_no,
+							  linkinfo=link_info)
+
+	for doctype, documents in results.iteritems():
+		for document in documents:
+			if document.get("docstatus") == 1 and batch_no not in batch_list:
+				batch_list.append(batch_no)
+				se = frappe.get_doc("Stock Entry", document.get("name"))
+				for item in se.items:
+					if batch_no != item.batch_no:
+						recursively_get_links(item.batch_no, batch_list)
+
+	return batch_list
+
+
+def get_columns(selected_doctype):
+	return [
+			{
+				"fieldname": "item_code",
+				"label": _("Item Code"),
+				"fieldtype": "Link",
+				"options": "Item",
+				"width": 90
+			},
+			{
+				"fieldname": "batch_no",
+				"label": _("Batch No"),
+				"fieldtype": "Link",
+				"options": "Batch",
+				"width": 90
+			},
+            {
+				"fieldname": "serial_no",
+				"label": _("Serial No"),
+				"fieldtype": "Serial",
+				"options": "Data",
+				"width": 90
+			},
+			{
+				"fieldname": "warehouse",
+				"label": _("Warehouse"),
+				"fieldtype": "Link",
+				"options": "Warehouse",
+				"width": 90
+			},
+			{
+				"fieldname": "activity_doctype",
+				"label": _("Activity DocType"),
+				"fieldtype": "Link",
+				"options": "DocType",
+				"width": 90
+			},
+			{
+				"fieldname": "activity_document",
+				"label": _("Activity Document"),
+				"fieldtype": "Dynamic Link",
+				"options": "activity_doctype",
+				"width": 90
+			},
+			{
+				"fieldname": "posting_date",
+				"label": _("Posting Date"),
+				"fieldtype": "Date",
+				"width": 90
+			},
+		]
