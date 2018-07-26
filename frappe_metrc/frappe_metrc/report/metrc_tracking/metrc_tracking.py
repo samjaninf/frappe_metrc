@@ -101,7 +101,7 @@ def get_columns(selected_doctype):
 				"label": _("Batch No"),
 				"fieldtype": "Link",
 				"options": "Batch",
-				"width": 90
+				"width": 120
 			},
             {
 				"fieldname": "serial_no",
