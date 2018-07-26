@@ -34,7 +34,8 @@ def execute(filters=None):
 
 	# Much less fucky
 	elif selected_doctype == "Batch":
-		results = recursively_get_links(filters.get("package_id"), [])
+		results = [result for result in recursively_get_links(filters.get("package_id"), []) if result is not None]
+
 		if results:
 			sle_list = frappe.get_all("Stock Ledger Entry", filters={"batch_no": [
 				"in", results]}, fields=["item_code", "batch_no", "serial_no", "warehouse", "posting_date", "voucher_type", "voucher_no"])
