@@ -5,9 +5,8 @@ from __future__ import unicode_literals
 
 import frappe
 from frappe import _
-from erpnext.stock.doctype.batch.batch import get_batch_qty
-from frappe.desk.form.linked_with import get_linked_docs, get_linked_doctypes
-from frappe.utils.background_jobs import enqueue
+from frappe.desk.form.linked_with import get_linked_docs
+
 
 def execute(filters=None):
 	columns, data = [], []
@@ -15,126 +14,124 @@ def execute(filters=None):
 	if not filters:
 		return columns, data
 
-	if not filters.get("package_id"):
-		return columns, data
-
-	selected_doctype = filters.get("link_doctype")
-	columns = get_columns(selected_doctype)
-
-	if selected_doctype == "Serial No":
-		# What the fuck
-		results = get_serial_nos(filters.get("package_id"), [])
-		if results:
-			for result in results[:-1]:
-				sle_list = frappe.get_all("Stock Ledger Entry", filters={"serial_no": [
-					"like", "%{}%".format(result)]}, fields=["item_code", "batch_no", "serial_no", "warehouse", "posting_date", "voucher_type", "voucher_no"])
-				for sle in sle_list:
-					data.append([sle.item_code, sle.batch_no, sle.serial_no, sle.warehouse,
-										sle.voucher_type, sle.voucher_no, sle.posting_date])
-
-	# Much less fucky
-	elif selected_doctype == "Batch":
-		results = [result for result in recursively_get_links(filters.get("package_id"), []) if result is not None]
-
-		if results:
-			sle_list = frappe.get_all("Stock Ledger Entry", filters={"batch_no": [
-				"in", results]}, fields=["item_code", "batch_no", "serial_no", "warehouse", "posting_date", "voucher_type", "voucher_no"])
-			for sle in sle_list:
-				data.append([sle.item_code, sle.batch_no, sle.serial_no, sle.warehouse,
-							 sle.voucher_type, sle.voucher_no, sle.posting_date])
+	columns = get_columns()
+	data = get_data(filters.get("link_doctype"), filters.get("link_name"))
 
 	return columns, data
 
 
-def get_serial_nos(source_serial_no, serial_nos):
-	stock_entries = frappe.get_all("Stock Entry Detail", filters={"serial_no": [
-		"like", "%{}%".format(source_serial_no)]}, fields=["parent"])
+def get_data(link_doctype, link_name, data=None, completed=None):
+	if not completed:
+		completed = []
 
-	for se in stock_entries:
-		se_doc = frappe.get_doc("Stock Entry", se.parent)
-		for item in se_doc.items:
-			if item.serial_no:
-				serials = item.serial_no.split("\n")
+	if not data:
+		data = []
 
-				for serial_no in serials:
-					if serial_no not in serial_nos:
-						serial_nos.extend(serials)
-						get_serial_nos(serial_no, serial_nos)
+	link_doc = frappe.get_doc(link_doctype, link_name)
+	if link_doctype == "Serial No":
+		source_doc = frappe.get_doc(link_doc.purchase_document_type, link_doc.purchase_document_no)
+	elif link_doctype == "Batch":
+		source_doc = frappe.get_doc(link_doc.reference_doctype, link_doc.reference_name)
 
-	return serial_nos
+	supplier = source_doc.supplier if source_doc.doctype == "Purchase Receipt" else ""
+
+	for item in source_doc.get("items", []):
+		if source_doc.doctype == "Purchase Receipt":
+			warehouse = item.warehouse
+		elif source_doc.doctype == "Stock Entry":
+			warehouse = item.t_warehouse
+
+		if item.get("t_warehouse") or item.get("warehouse"):
+			completed.append(link_name)
+			data.append({
+				"item_code": item.item_code,
+				"serial_no": link_name if item.serial_no else "",
+				"batch_no": link_name if item.batch_no else "",
+				"qty": item.qty,
+				"stock_uom": item.stock_uom,
+				"warehouse": warehouse,
+				"date": source_doc.posting_date,
+				"supplier": supplier,
+				"activity_doctype": source_doc.doctype,
+				"activity_document": source_doc.name
+			})
+		elif item.get("s_warehouse"):
+			if item.serial_no and item.serial_no not in completed:
+				data = get_data("Serial No", item.serial_no, data, completed)
+			elif item.batch_no and item.batch_no not in completed:
+				data = get_data("Batch", item.batch_no, data, completed)
+
+	return data
 
 
-def recursively_get_links(batch_no, batch_list):
-	link_info = {
-		'Stock Entry': {
-			'child_doctype': 'Stock Entry Detail',
-			'fieldname': ['batch_no']
-		}
-	}
-
-	results = get_linked_docs("Batch", batch_no,
-							  linkinfo=link_info)
-
-	for doctype, documents in results.iteritems():
-		for document in documents:
-			if document.get("docstatus") == 1 and batch_no not in batch_list:
-				batch_list.append(batch_no)
-				se = frappe.get_doc("Stock Entry", document.get("name"))
-				for item in se.items:
-					if batch_no != item.batch_no:
-						recursively_get_links(item.batch_no, batch_list)
-
-	return batch_list
-
-
-def get_columns(selected_doctype):
+def get_columns():
 	return [
-			{
-				"fieldname": "item_code",
-				"label": _("Item Code"),
-				"fieldtype": "Link",
-				"options": "Item",
-				"width": 90
-			},
-			{
-				"fieldname": "batch_no",
-				"label": _("Batch No"),
-				"fieldtype": "Link",
-				"options": "Batch",
-				"width": 120
-			},
-            {
-				"fieldname": "serial_no",
-				"label": _("Serial No"),
-				"fieldtype": "Serial",
-				"options": "Data",
-				"width": 90
-			},
-			{
-				"fieldname": "warehouse",
-				"label": _("Warehouse"),
-				"fieldtype": "Link",
-				"options": "Warehouse",
-				"width": 90
-			},
-			{
-				"fieldname": "activity_doctype",
-				"label": _("Activity DocType"),
-				"fieldtype": "Link",
-				"options": "DocType",
-				"width": 90
-			},
-			{
-				"fieldname": "activity_document",
-				"label": _("Activity Document"),
-				"fieldtype": "Dynamic Link",
-				"options": "activity_doctype",
-				"width": 90
-			},
-			{
-				"fieldname": "posting_date",
-				"label": _("Posting Date"),
-				"fieldtype": "Date",
-				"width": 90
-			},
-		]
+		{
+			"fieldname": "item_code",
+			"label": _("Item Code"),
+			"fieldtype": "Link",
+			"options": "Item",
+			"width": 90
+		},
+		{
+			"fieldname": "batch_no",
+			"label": _("Batch No"),
+			"fieldtype": "Link",
+			"options": "Batch",
+			"width": 100
+		},
+		{
+			"fieldname": "serial_no",
+			"label": _("Serial No"),
+			"fieldtype": "Serial",
+			"options": "Data",
+			"width": 110
+		},
+		{
+			"fieldname": "qty",
+			"label": _("Quantity"),
+			"fieldtype": "Float",
+			"width": 90
+		},
+		{
+			"fieldname": "stock_uom",
+			"label": _("Unit"),
+			"fieldtype": "Link",
+			"options": "UOM",
+			"width": 90
+		},
+		{
+			"fieldname": "warehouse",
+			"label": _("Warehouse"),
+			"fieldtype": "Link",
+			"options": "Warehouse",
+			"width": 150
+		},
+		{
+			"fieldname": "date",
+			"label": _("Posting Date"),
+			"fieldtype": "Date",
+			"width": 90
+		},
+		{
+			"fieldname": "activity_doctype",
+			"label": _("Activity Type"),
+			"fieldtype": "Link",
+			"options": "DocType",
+			"width": 90
+		},
+		{
+			"fieldname": "activity_document",
+			"label": _("Activity Document"),
+			"fieldtype": "Dynamic Link",
+			"options": "activity_doctype",
+			"width": 150
+		},
+		{
+			"fieldname": "supplier",
+			"label": _("Supplier"),
+			"fieldtype": "Link",
+			"options": "Supplier",
+			"width": 100
+		}
+	]
