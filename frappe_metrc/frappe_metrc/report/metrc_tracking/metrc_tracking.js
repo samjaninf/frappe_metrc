@@ -10,18 +10,22 @@ frappe.query_reports["Metrc Tracking"] = {
 			"fieldtype": "Link",
 			"options": "DocType",
 			"default": "Batch",
-			"get_query": function () {
+			"get_query": () => {
 				return {
 					filters: { "name": ["in", ["Serial No", "Batch"]] }
 				}
 			},
+			"on_change": () => {
+				frappe.query_report.set_filter_value("link_name", null);
+			},
 			"reqd": 1
 		},
 		{
-			"fieldname": "package_id",
+			"fieldname": "link_name",
 			"label": __("Serial / Batch"),
 			"fieldtype": "Dynamic Link",
-			"options": "link_doctype"
+			"options": "link_doctype",
+			"reqd": 1
 		},
 	]
 }
