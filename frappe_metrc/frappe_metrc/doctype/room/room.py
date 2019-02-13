@@ -28,7 +28,12 @@ class Room(Document):
 
 		if not self.room_id:
 			# Create Room in Metrc and assign ID
-			metrc.post("/rooms/v1/create", data)
+			#metrc.post("/rooms/v1/create", data)
+			doc = frappe.get_doc({
+				"doctype": "Room",
+				"Name": self.room_name
+			})
+			doc.insert()
 		else:
 			# use the update API to update the object if room id exists
 			data[0].update({"Id": self.room_id})
