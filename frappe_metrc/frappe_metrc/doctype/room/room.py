@@ -33,6 +33,7 @@ class Room(Document):
 				"doctype": "Room",
 				"Name": self.room_name
 			})
+			doc.room_name = sel.room_name
 			doc.insert()
 		else:
 			# use the update API to update the object if room id exists
